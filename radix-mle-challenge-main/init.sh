@@ -13,7 +13,7 @@ function log {
 
 function create_venv {
     log "Creating virtual environment... \\n"
-    python -m venv .env
+    python3 -m venv .env
     log " --> Done! \\n\\n"
 }
 
@@ -21,8 +21,8 @@ function install_dependencies {
     log "Installing dependencies... \\n"
     # shellcheck disable=SC1091
     source .env/bin/activate
-    pip install --upgrade pip
-    pip install -r requirements.txt
+    pip3 install --upgrade pip
+    pip3 install -r requirements.txt
     log " --> Done! \\n\\n"
 }
 
