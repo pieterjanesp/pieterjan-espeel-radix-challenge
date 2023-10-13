@@ -9,6 +9,7 @@ from io import BytesIO
 import joblib
 import pandas as pd
 import numpy as np
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import GridSearchCV
 from sklearn.multioutput import MultiOutputClassifier
@@ -17,11 +18,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
+from stop_words import get_stop_words
 from fastapi import FastAPI, File
 
-
 app = FastAPI()
-
+stop_words = get_stop_words('en')
 
 @app.post("/genres/train")
 async def train(file: bytes = File(...)) -> None:
@@ -40,15 +41,19 @@ async def train(file: bytes = File(...)) -> None:
     """
     df = pd.read_csv(BytesIO(file))
     df['genres'] = df['genres'].apply(lambda x: x.split())
-
+    
+    # Preprocessing Section of Synopsis
+    df['synopsis'] = df['synopsis'].apply(lambda x: clean_text(x))
+    df['synopsis'] = df['synopsis'].apply(lambda x: remove_stopwords(x))
+    print(df['synopsis'])
     mlb = MultiLabelBinarizer()
     transformed_genres = mlb.fit_transform(df['genres'])
 
     model_pipeline = Pipeline([
-        ('tfidf', TfidfVectorizer(max_features=10000,
+        ('tfidf', TfidfVectorizer(max_features=20000,
                                   max_df=0.1,
                                   min_df=0.001,
-                                  ngram_range=(1,1))),
+                                  ngram_range=(1,3))),
         ('clf', MultiOutputClassifier(MultinomialNB()))
     ])
 
@@ -112,3 +117,16 @@ async def predict(file: bytes = File(...)) -> dict:
         response[str(movie_id)] = {i: genre for i, genre in enumerate(top_genres)}
 
     return response
+
+def clean_text(text):
+    # Remove everything except letters in alphabet
+    text = re.sub("[^a-zA-Z]", " ", text)
+    # Strip away extra whitespacing
+    text = " ".join(text.split())
+    # Convert text to lower case
+    text = text.lower()
+    return text
+
+def remove_stopwords(text):
+    text_no_stopwords = [w for w in text.split() if not w in stop_words]
+    return ' '.join(text_no_stopwords)
